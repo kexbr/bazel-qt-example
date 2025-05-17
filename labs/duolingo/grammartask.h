@@ -2,7 +2,7 @@
 #define GRAMMARTASK_H
 
 #include <QString>
-#include <QtSql/QSqlQuery>
+#include <QSqlQuery>
 #include <QStringList>
 #include <QVariant>
 

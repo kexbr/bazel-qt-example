@@ -1,8 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QtSql/QSqlDatabase>
-#include <QtSql/QSqlQuery>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QMainWindow>
 #include <QStackedWidget>
 #include <QProgressBar>

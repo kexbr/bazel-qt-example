@@ -2,8 +2,8 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMessageBox>
-#include <QtSql/QSqlQuery>
-#include <QtSql/QSqlError>
+#include <QSqlQuery>
+#include <QSqlError>
 #include <QFont>
 #include <QPixmap>
 #include <QDebug>
