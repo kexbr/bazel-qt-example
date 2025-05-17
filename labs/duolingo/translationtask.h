@@ -4,13 +4,12 @@
 #include <QString>
 #include <QtSql/QSqlQuery>
 
-class TranslationTask
-{
-public:
+class TranslationTask {
+   public:
     TranslationTask();
-    TranslationTask(int id, const QString& native_text,
-                    const QString& target_text, const QString& hint = "",
-                    int difficulty = 1);
+    TranslationTask(
+        int id, const QString& native_text, const QString& target_text, const QString& hint = "",
+        int difficulty = 1);
     int id() const;
     QString nativeText() const;
     QString targetText() const;
@@ -19,7 +18,7 @@ public:
     bool checkAnswer(const QString& usrAns) const;
     static TranslationTask fromSql(const QSqlQuery& query);
 
-private:
+   private:
     int id_;
     QString nativeTxt_;
     QString targetTxt_;
@@ -27,4 +26,4 @@ private:
     int difficulty_;
 };
 
-#endif // TRANSLATIONTASK_H
+#endif  // TRANSLATIONTASK_H

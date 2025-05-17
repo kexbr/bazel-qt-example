@@ -15,6 +15,7 @@ qt_cc_library(
 qt_cc_binary(
     name = "main",
     srcs = ["main.cpp"],
+    data = ["logo.png"],
     deps = [
         ":main_window",
         "@rules_qt//:qt_widgets",

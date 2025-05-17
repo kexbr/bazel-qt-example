@@ -1,30 +1,32 @@
 #include "mainwindow.h"
-#include <QVBoxLayout>
+
+#include <QDebug>
+#include <QFont>
 #include <QHBoxLayout>
 #include <QMessageBox>
-#include <QSqlQuery>
-#include <QSqlError>
-#include <QFont>
 #include <QPixmap>
-#include <QDebug>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget* p)
-    : QMainWindow(p),
-    curExType_(ExType::None),
-    curTaskIdx_(-1),
-    completedTasks_(0),
-    curScore_(0),
-    remAttempts_(MAX_ATTEMPTS_PER_SERIES),
-    seriesTimeRemSec_(SERIES_TIME_SECONDS),
-    curDifficulty_(1)
-{
+    : QMainWindow(p)
+    , curExType_(ExType::None)
+    , curTaskIdx_(-1)
+    , completedTasks_(0)
+    , curScore_(0)
+    , remAttempts_(MAX_ATTEMPTS_PER_SERIES)
+    , seriesTimeRemSec_(SERIES_TIME_SECONDS)
+    , curDifficulty_(1) {
     initDb();
 
     stackedWidget_ = new QStackedWidget(this);
     progressBar_ = new QProgressBar(this);
     scoreLbl_ = new QLabel("Счёт: 0", this);
     attemptsLbl_ = new QLabel(QString("Попытки: %1").arg(MAX_ATTEMPTS_PER_SERIES), this);
-    timerLbl_ = new QLabel(QString("Время: %1:%02d").arg(SERIES_TIME_SECONDS / 60).arg(SERIES_TIME_SECONDS % 60), this);
+    timerLbl_ = new QLabel(
+        QString("Время: %1:%02d").arg(SERIES_TIME_SECONDS / 60).arg(SERIES_TIME_SECONDS % 60),
+        this);
     seriesTimer_ = new QTimer(this);
 
     setupTopPanel();
@@ -52,12 +54,10 @@ MainWindow::MainWindow(QWidget* p)
         "   border-radius: 5px;"
         "   text-align: center;"
         "}"
-        "QProgressBar::chunk { background-color: #4CAF50; width: 1px; }"
-        );
+        "QProgressBar::chunk { background-color: #4CAF50; width: 1px; }");
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     if (db_.isOpen()) {
         db_.close();
     }
@@ -102,79 +102,397 @@ void MainWindow::initDb() {
     chk_q.exec("SELECT COUNT(*) FROM grammar_exercises");
     if (chk_q.next() && chk_q.value(0).toInt() == 0) {
         qDebug() << "Populating grammar_exercises table...";
-        q.prepare("INSERT INTO grammar_exercises (question, option1, option2, option3, option4, correct_option, hint, difficulty) "
-                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        q.prepare(
+            "INSERT INTO grammar_exercises (question, option1, option2, option3, option4, "
+            "correct_option, hint, difficulty) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         QStringList data = {
-            "I ___ a student.", "is", "are", "am", "be", "3", "Verb 'to be' for 'I'.", "1",
-            "She ___ a doctor.", "is", "are", "am", "be", "1", "Verb 'to be' for singular third person.", "1",
-            "They ___ friends.", "is", "are", "am", "be", "2", "Verb 'to be' for plural.", "1",
-            "He ___ a cat.", "has", "have", "is", "are", "1", "'has' for he/she/it.", "1",
-            "We ___ English.", "speak", "speaks", "speaking", "spoke", "1", "Simple Present for 'We'.", "1",
-            "This is ___ apple.", "a", "an", "the", "some", "2", "Use 'an' before a vowel sound.", "1",
-            "There ___ two books on the table.", "is", "are", "was", "am", "2", "'There are' for plural nouns.", "1",
-            "My brother ___ TV every day.", "watch", "watches", "watching", "watched", "2", "Simple Present, 3rd person singular (-es).", "1",
-            "Can you help ___?", "I", "my", "me", "mine", "3", "Object pronoun needed here.", "1",
-            "The book is ___ the table.", "in", "on", "at", "under", "2", "Preposition of place.", "1",
-            "They ___ football now.", "play", "plays", "are playing", "played", "3", "Present Continuous for an action happening now.", "2",
-            "She ___ to Paris last year.", "go", "goes", "went", "has gone", "3", "Past Simple for a completed action in the past.", "2",
-            "I ___ this movie before.", "see", "saw", "have seen", "am seeing", "3", "Present Perfect for experiences.", "2",
-            "This car is ___ than that one.", "big", "bigger", "biggest", "more big", "2", "Comparative form of adjectives.", "2",
-            "You ___ study for the exam.", "can", "may", "should", "would", "3", "Modal verb for advice.", "2",
-            "There isn't ___ milk in the fridge.", "some", "any", "no", "a lot", "2", "'any' is used in negative sentences.", "2",
-            "He ___ (visit) his grandparents next week.", "visit", "visits", "will visit", "visited", "3", "Future Simple for future plans.", "2",
-            "While I ___ (read), the phone ___ (ring).", "read, ringed", "was reading, rang", "read, was ringing", "reading, rings", "2", "Past Continuous and Past Simple for interrupted actions.", "2",
-            "She is interested ___ learning new languages.", "on", "at", "in", "for", "3", "Preposition 'in' after 'interested'.", "2",
-            "How ___ students are in your class?", "much", "many", "a lot of", "some", "2", "'many' for countable nouns, 'much' for uncountable.", "2",
-            "If I ___ you, I would apologize.", "am", "was", "were", "be", "3", "Second conditional, subjunctive mood 'were' for 'I'.", "3",
-            "The work ___ by tomorrow morning.", "will finish", "will be finished", "finishes", "is finishing", "2", "Future Passive voice.", "3",
-            "He said he ___ tired.", "is", "was", "has been", "will be", "2", "Reported speech: tense backshift.", "3",
-            "She has been living here ___ 2010.", "since", "for", "ago", "from", "1", "Use 'since' with a specific point in time.", "3",
-            "I'd rather you ___ make so much noise.", "don't", "didn't", "won't", "wouldn't", "2", "Structure 'would rather someone did something' (past tense for present preference).", "3",
-            "By the time she arrived, we ___ dinner.", "had finished", "finished", "were finishing", "finish", "1", "Past Perfect for an action completed before another past action.", "3",
-            "It's no use ___ about the spilt milk.", "to cry", "cry", "crying", "cried", "3", "Fixed phrase 'it's no use' + gerund (-ing form).", "3",
-            "___ he studies hard, he will pass the exam.", "Unless", "If", "Although", "Despite", "2", "Conditional conjunction.", "3",
-            "This is the man ___ dog bit me.", "who", "which", "whose", "whom", "3", "Possessive relative pronoun.", "3",
-            "Not only ___ famous, but she is also very talented.", "she is", "is she", "she was", "was she", "2", "Inversion after 'Not only' at the beginning of a sentence.", "3"
-        };
-        for(int i=0; i < data.size(); i+=8) {
-            q.addBindValue(data[i]); q.addBindValue(data[i+1]); q.addBindValue(data[i+2]); q.addBindValue(data[i+3]); q.addBindValue(data[i+4]);
-            q.addBindValue(data[i+5].toInt()); q.addBindValue(data[i+6]); q.addBindValue(data[i+7].toInt()); q.exec();
+          "I ___ a student.",
+          "is",
+          "are",
+          "am",
+          "be",
+          "3",
+          "Verb 'to be' for 'I'.",
+          "1",
+          "She ___ a doctor.",
+          "is",
+          "are",
+          "am",
+          "be",
+          "1",
+          "Verb 'to be' for singular third person.",
+          "1",
+          "They ___ friends.",
+          "is",
+          "are",
+          "am",
+          "be",
+          "2",
+          "Verb 'to be' for plural.",
+          "1",
+          "He ___ a cat.",
+          "has",
+          "have",
+          "is",
+          "are",
+          "1",
+          "'has' for he/she/it.",
+          "1",
+          "We ___ English.",
+          "speak",
+          "speaks",
+          "speaking",
+          "spoke",
+          "1",
+          "Simple Present for 'We'.",
+          "1",
+          "This is ___ apple.",
+          "a",
+          "an",
+          "the",
+          "some",
+          "2",
+          "Use 'an' before a vowel sound.",
+          "1",
+          "There ___ two books on the table.",
+          "is",
+          "are",
+          "was",
+          "am",
+          "2",
+          "'There are' for plural nouns.",
+          "1",
+          "My brother ___ TV every day.",
+          "watch",
+          "watches",
+          "watching",
+          "watched",
+          "2",
+          "Simple Present, 3rd person singular (-es).",
+          "1",
+          "Can you help ___?",
+          "I",
+          "my",
+          "me",
+          "mine",
+          "3",
+          "Object pronoun needed here.",
+          "1",
+          "The book is ___ the table.",
+          "in",
+          "on",
+          "at",
+          "under",
+          "2",
+          "Preposition of place.",
+          "1",
+          "They ___ football now.",
+          "play",
+          "plays",
+          "are playing",
+          "played",
+          "3",
+          "Present Continuous for an action happening now.",
+          "2",
+          "She ___ to Paris last year.",
+          "go",
+          "goes",
+          "went",
+          "has gone",
+          "3",
+          "Past Simple for a completed action in the past.",
+          "2",
+          "I ___ this movie before.",
+          "see",
+          "saw",
+          "have seen",
+          "am seeing",
+          "3",
+          "Present Perfect for experiences.",
+          "2",
+          "This car is ___ than that one.",
+          "big",
+          "bigger",
+          "biggest",
+          "more big",
+          "2",
+          "Comparative form of adjectives.",
+          "2",
+          "You ___ study for the exam.",
+          "can",
+          "may",
+          "should",
+          "would",
+          "3",
+          "Modal verb for advice.",
+          "2",
+          "There isn't ___ milk in the fridge.",
+          "some",
+          "any",
+          "no",
+          "a lot",
+          "2",
+          "'any' is used in negative sentences.",
+          "2",
+          "He ___ (visit) his grandparents next week.",
+          "visit",
+          "visits",
+          "will visit",
+          "visited",
+          "3",
+          "Future Simple for future plans.",
+          "2",
+          "While I ___ (read), the phone ___ (ring).",
+          "read, ringed",
+          "was reading, rang",
+          "read, was ringing",
+          "reading, rings",
+          "2",
+          "Past Continuous and Past Simple for interrupted actions.",
+          "2",
+          "She is interested ___ learning new languages.",
+          "on",
+          "at",
+          "in",
+          "for",
+          "3",
+          "Preposition 'in' after 'interested'.",
+          "2",
+          "How ___ students are in your class?",
+          "much",
+          "many",
+          "a lot of",
+          "some",
+          "2",
+          "'many' for countable nouns, 'much' for uncountable.",
+          "2",
+          "If I ___ you, I would apologize.",
+          "am",
+          "was",
+          "were",
+          "be",
+          "3",
+          "Second conditional, subjunctive mood 'were' for 'I'.",
+          "3",
+          "The work ___ by tomorrow morning.",
+          "will finish",
+          "will be finished",
+          "finishes",
+          "is finishing",
+          "2",
+          "Future Passive voice.",
+          "3",
+          "He said he ___ tired.",
+          "is",
+          "was",
+          "has been",
+          "will be",
+          "2",
+          "Reported speech: tense backshift.",
+          "3",
+          "She has been living here ___ 2010.",
+          "since",
+          "for",
+          "ago",
+          "from",
+          "1",
+          "Use 'since' with a specific point in time.",
+          "3",
+          "I'd rather you ___ make so much noise.",
+          "don't",
+          "didn't",
+          "won't",
+          "wouldn't",
+          "2",
+          "Structure 'would rather someone did something' (past tense for present preference).",
+          "3",
+          "By the time she arrived, we ___ dinner.",
+          "had finished",
+          "finished",
+          "were finishing",
+          "finish",
+          "1",
+          "Past Perfect for an action completed before another past action.",
+          "3",
+          "It's no use ___ about the spilt milk.",
+          "to cry",
+          "cry",
+          "crying",
+          "cried",
+          "3",
+          "Fixed phrase 'it's no use' + gerund (-ing form).",
+          "3",
+          "___ he studies hard, he will pass the exam.",
+          "Unless",
+          "If",
+          "Although",
+          "Despite",
+          "2",
+          "Conditional conjunction.",
+          "3",
+          "This is the man ___ dog bit me.",
+          "who",
+          "which",
+          "whose",
+          "whom",
+          "3",
+          "Possessive relative pronoun.",
+          "3",
+          "Not only ___ famous, but she is also very talented.",
+          "she is",
+          "is she",
+          "she was",
+          "was she",
+          "2",
+          "Inversion after 'Not only' at the beginning of a sentence.",
+          "3"};
+        for (int i = 0; i < data.size(); i += 8) {
+            q.addBindValue(data[i]);
+            q.addBindValue(data[i + 1]);
+            q.addBindValue(data[i + 2]);
+            q.addBindValue(data[i + 3]);
+            q.addBindValue(data[i + 4]);
+            q.addBindValue(data[i + 5].toInt());
+            q.addBindValue(data[i + 6]);
+            q.addBindValue(data[i + 7].toInt());
+            q.exec();
         }
     }
 
     chk_q.exec("SELECT COUNT(*) FROM translation_exercises");
     if (chk_q.next() && chk_q.value(0).toInt() == 0) {
         qDebug() << "Populating translation_exercises table...";
-        q.prepare("INSERT INTO translation_exercises (native_text, target_text, hint, difficulty) VALUES (?, ?, ?, ?)");
+        q.prepare(
+            "INSERT INTO translation_exercises (native_text, target_text, hint, difficulty) VALUES "
+            "(?, ?, ?, ?)");
         QStringList data = {
-            "Привет", "Hello", "A common greeting.", "1", "Спасибо", "Thank you", "Expressing gratitude.", "1",
-            "Да", "Yes", "Affirmative response.", "1", "Нет", "No", "Negative response.", "1",
-            "Мой дом", "My house", "Possessive pronoun + noun.", "1", "Красный шар", "Red ball", "Adjective + noun.", "1",
-            "Я вижу собаку", "I see a dog", "Simple sentence structure.", "1", "Это книга", "This is a book", "Demonstrative pronoun.", "1",
-            "Доброе утро", "Good morning", "Morning greeting.", "1", "Как тебя зовут?", "What is your name?", "Asking for a name.", "1",
-            "Я люблю читать книги", "I like to read books", "Verb 'like' + infinitive.", "2",
-            "Она говорит по-английски очень хорошо", "She speaks English very well", "Adverb placement.", "2",
-            "Мы ходили в кино вчера", "We went to the cinema yesterday", "Past Simple tense.", "2",
-            "Где находится ближайший магазин?", "Where is the nearest shop?", "Asking for directions, superlative.", "2",
-            "У меня есть брат и сестра", "I have a brother and a sister", "Family members.", "2",
-            "Завтра будет солнечно", "It will be sunny tomorrow", "Future tense, weather.", "2",
-            "Эта задача сложнее, чем предыдущая", "This task is more difficult than the previous one", "Comparative adjective.", "2",
-            "Он всегда помогает своим друзьям", "He always helps his friends", "Adverb of frequency, possessive pronoun.", "2",
-            "Не могли бы вы мне помочь?", "Could you help me, please?", "Polite request.", "2",
-            "Я учусь в университете уже два года", "I have been studying at the university for two years", "Present Perfect Continuous.", "2",
-            "Если бы я знал ответ, я бы тебе сказал", "If I knew the answer, I would tell you", "Second conditional.", "3",
-            "Несмотря на плохую погоду, мы пошли на прогулку", "Despite the bad weather, we went for a walk", "Conjunction 'despite'.", "3",
-            "Книга, которую я читаю, очень интересная", "The book that I am reading is very interesting", "Relative clause.", "3",
-            "Ему пришлось ждать более часа", "He had to wait for more than an hour", "Modal 'had to' for necessity in the past.", "3",
-            "Я бы предпочел остаться дома сегодня вечером", "I would prefer to stay home tonight", "'Would prefer' + infinitive.", "3",
-            "Чем больше ты учишься, тем больше ты знаешь", "The more you study, the more you know", "Comparative construction 'The more... the more...'.", "3",
-            "Говорят, что этот фильм стоит посмотреть", "They say this movie is worth watching", "Passive-like construction with 'They say', 'worth doing sth'.", "3",
-            "Я с нетерпением жду нашей встречи", "I am looking forward to our meeting", "Phrasal verb 'look forward to' + noun/-ing.", "3",
-            "Он не только умный, но и очень добрый", "He is not only smart but also very kind", "Correlative conjunction 'not only... but also...'.", "3",
-            "К тому времени, как мы приехали, вечеринка уже началась", "By the time we arrived, the party had already started", "Past Perfect tense with 'by the time'.", "3"
-        };
-        for(int i=0; i < data.size(); i+=4) {
-            q.addBindValue(data[i]); q.addBindValue(data[i+1]); q.addBindValue(data[i+2]); q.addBindValue(data[i+3].toInt()); q.exec();
+          "Привет",
+          "Hello",
+          "A common greeting.",
+          "1",
+          "Спасибо",
+          "Thank you",
+          "Expressing gratitude.",
+          "1",
+          "Да",
+          "Yes",
+          "Affirmative response.",
+          "1",
+          "Нет",
+          "No",
+          "Negative response.",
+          "1",
+          "Мой дом",
+          "My house",
+          "Possessive pronoun + noun.",
+          "1",
+          "Красный шар",
+          "Red ball",
+          "Adjective + noun.",
+          "1",
+          "Я вижу собаку",
+          "I see a dog",
+          "Simple sentence structure.",
+          "1",
+          "Это книга",
+          "This is a book",
+          "Demonstrative pronoun.",
+          "1",
+          "Доброе утро",
+          "Good morning",
+          "Morning greeting.",
+          "1",
+          "Как тебя зовут?",
+          "What is your name?",
+          "Asking for a name.",
+          "1",
+          "Я люблю читать книги",
+          "I like to read books",
+          "Verb 'like' + infinitive.",
+          "2",
+          "Она говорит по-английски очень хорошо",
+          "She speaks English very well",
+          "Adverb placement.",
+          "2",
+          "Мы ходили в кино вчера",
+          "We went to the cinema yesterday",
+          "Past Simple tense.",
+          "2",
+          "Где находится ближайший магазин?",
+          "Where is the nearest shop?",
+          "Asking for directions, superlative.",
+          "2",
+          "У меня есть брат и сестра",
+          "I have a brother and a sister",
+          "Family members.",
+          "2",
+          "Завтра будет солнечно",
+          "It will be sunny tomorrow",
+          "Future tense, weather.",
+          "2",
+          "Эта задача сложнее, чем предыдущая",
+          "This task is more difficult than the previous one",
+          "Comparative adjective.",
+          "2",
+          "Он всегда помогает своим друзьям",
+          "He always helps his friends",
+          "Adverb of frequency, possessive pronoun.",
+          "2",
+          "Не могли бы вы мне помочь?",
+          "Could you help me, please?",
+          "Polite request.",
+          "2",
+          "Я учусь в университете уже два года",
+          "I have been studying at the university for two years",
+          "Present Perfect Continuous.",
+          "2",
+          "Если бы я знал ответ, я бы тебе сказал",
+          "If I knew the answer, I would tell you",
+          "Second conditional.",
+          "3",
+          "Несмотря на плохую погоду, мы пошли на прогулку",
+          "Despite the bad weather, we went for a walk",
+          "Conjunction 'despite'.",
+          "3",
+          "Книга, которую я читаю, очень интересная",
+          "The book that I am reading is very interesting",
+          "Relative clause.",
+          "3",
+          "Ему пришлось ждать более часа",
+          "He had to wait for more than an hour",
+          "Modal 'had to' for necessity in the past.",
+          "3",
+          "Я бы предпочел остаться дома сегодня вечером",
+          "I would prefer to stay home tonight",
+          "'Would prefer' + infinitive.",
+          "3",
+          "Чем больше ты учишься, тем больше ты знаешь",
+          "The more you study, the more you know",
+          "Comparative construction 'The more... the more...'.",
+          "3",
+          "Говорят, что этот фильм стоит посмотреть",
+          "They say this movie is worth watching",
+          "Passive-like construction with 'They say', 'worth doing sth'.",
+          "3",
+          "Я с нетерпением жду нашей встречи",
+          "I am looking forward to our meeting",
+          "Phrasal verb 'look forward to' + noun/-ing.",
+          "3",
+          "Он не только умный, но и очень добрый",
+          "He is not only smart but also very kind",
+          "Correlative conjunction 'not only... but also...'.",
+          "3",
+          "К тому времени, как мы приехали, вечеринка уже началась",
+          "By the time we arrived, the party had already started",
+          "Past Perfect tense with 'by the time'.",
+          "3"};
+        for (int i = 0; i < data.size(); i += 4) {
+            q.addBindValue(data[i]);
+            q.addBindValue(data[i + 1]);
+            q.addBindValue(data[i + 2]);
+            q.addBindValue(data[i + 3].toInt());
+            q.exec();
         }
     }
     qDebug() << "Database initialized/checked.";
@@ -230,13 +548,12 @@ void MainWindow::setupTopPanel() {
     topPanel_->setLayout(lyt);
 }
 
-
 void MainWindow::setupStartPage() {
     startPage_ = new QWidget(this);
     QVBoxLayout* lyt = new QVBoxLayout(startPage_);
 
     logoLbl_ = new QLabel(this);
-    QPixmap pxm("../../logo.png");
+    QPixmap pxm("labs/duolingo/logo.png");
     if (!pxm.isNull()) {
         logoLbl_->setPixmap(pxm.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     } else {
@@ -263,8 +580,7 @@ void MainWindow::setupStartPage() {
         "   min-width: 150px;"
         "}"
         "QPushButton:hover { background-color: #45a049; }"
-        "QPushButton:pressed { background-color: #3e8e41; }"
-        );
+        "QPushButton:pressed { background-color: #3e8e41; }");
     startBtn_->setMinimumHeight(50);
 
     lyt->addStretch();
@@ -278,7 +594,8 @@ void MainWindow::setupStartPage() {
 void MainWindow::setupPlaceholderPage() {
     placeholderPage_ = new QWidget(this);
     QVBoxLayout* lyt = new QVBoxLayout(placeholderPage_);
-    placeholderLbl_ = new QLabel("Выберите тип упражнения (Перевод или Грамматика), чтобы начать.", this);
+    placeholderLbl_ =
+        new QLabel("Выберите тип упражнения (Перевод или Грамматика), чтобы начать.", this);
     placeholderLbl_->setAlignment(Qt::AlignCenter);
     QFont fnt = placeholderLbl_->font();
     fnt.setPointSize(16);
@@ -317,7 +634,8 @@ void MainWindow::createDiffDialog() {
         diffComboBox_->setCurrentIndex(idx);
     }
 
-    QDialogButtonBox* btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, diffDialog_);
+    QDialogButtonBox* btns =
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, diffDialog_);
     connect(btns, &QDialogButtonBox::accepted, diffDialog_, &QDialog::accept);
     connect(btns, &QDialogButtonBox::rejected, diffDialog_, &QDialog::reject);
 
@@ -335,8 +653,9 @@ void MainWindow::openDifficultyDialog() {
 
     if (diffDialog_->exec() == QDialog::Accepted) {
         curDifficulty_ = diffComboBox_->currentData().toInt();
-        QMessageBox::information(this, "Сложность изменена",
-                                 QString("Новый уровень сложности: %1").arg(diffComboBox_->currentText()));
+        QMessageBox::information(
+            this, "Сложность изменена",
+            QString("Новый уровень сложности: %1").arg(diffComboBox_->currentText()));
     }
 }
 
@@ -346,20 +665,23 @@ void MainWindow::setupTransPage() {
 
     transTaskLbl_ = new QLabel("Текст для перевода появится здесь.", this);
     transTaskLbl_->setWordWrap(true);
-    transTaskLbl_->setStyleSheet("font-size: 16px; border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9; border-radius: 5px;");
+    transTaskLbl_->setStyleSheet(
+        "font-size: 16px; border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9; "
+        "border-radius: 5px;");
     transTaskLbl_->setMinimumHeight(100);
 
     transInput_ = new QTextEdit(this);
     transInput_->setPlaceholderText("Введите ваш перевод здесь...");
-    transInput_->setStyleSheet("font-size: 16px; border: 1px solid #ccc; padding: 10px; border-radius: 5px;");
+    transInput_->setStyleSheet(
+        "font-size: 16px; border: 1px solid #ccc; padding: 10px; border-radius: 5px;");
     transInput_->setMaximumHeight(150);
 
     transSubmitBtn_ = new QPushButton("Отправить", this);
     transSubmitBtn_->setStyleSheet(
-        "QPushButton { background-color: #007bff; color: white; font-size: 16px; padding: 10px 20px; border-radius: 5px; }"
+        "QPushButton { background-color: #007bff; color: white; font-size: 16px; padding: 10px "
+        "20px; border-radius: 5px; }"
         "QPushButton:hover { background-color: #0069d9; }"
-        "QPushButton:pressed { background-color: #005cbf; }"
-        );
+        "QPushButton:pressed { background-color: #005cbf; }");
     transSubmitBtn_->setMinimumHeight(40);
 
     lyt->addWidget(new QLabel("Переведите следующий текст:", this));
@@ -392,10 +714,10 @@ void MainWindow::setupGrammarPage() {
 
     grammarSubmitBtn_ = new QPushButton("Отправить", this);
     grammarSubmitBtn_->setStyleSheet(
-        "QPushButton { background-color: #007bff; color: white; font-size: 16px; padding: 10px 20px; border-radius: 5px; }"
+        "QPushButton { background-color: #007bff; color: white; font-size: 16px; padding: 10px "
+        "20px; border-radius: 5px; }"
         "QPushButton:hover { background-color: #0069d9; }"
-        "QPushButton:pressed { background-color: #005cbf; }"
-        );
+        "QPushButton:pressed { background-color: #005cbf; }");
     grammarSubmitBtn_->setMinimumHeight(40);
 
     lyt->addWidget(grammarQuestLbl_);
@@ -449,7 +771,9 @@ void MainWindow::startNewSeries(ExType type) {
 
     if ((type == ExType::Translation && curTransSeries_.isEmpty()) ||
         (type == ExType::Grammar && curGrammarSeries_.isEmpty())) {
-        QMessageBox::warning(this, "Нет заданий", QString("Не удалось загрузить задания для сложности (%1).").arg(curDifficulty_));
+        QMessageBox::warning(
+            this, "Нет заданий",
+            QString("Не удалось загрузить задания для сложности (%1).").arg(curDifficulty_));
         stackedWidget_->setCurrentWidget(placeholderPage_);
         curExType_ = ExType::None;
         seriesTimer_->stop();
@@ -473,9 +797,13 @@ void MainWindow::loadTasksForSeries() {
     QString sql;
 
     if (curExType_ == ExType::Translation) {
-        sql = "SELECT * FROM translation_exercises WHERE difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit";
+        sql =
+            "SELECT * FROM translation_exercises WHERE difficulty = :difficulty ORDER BY RANDOM() "
+            "LIMIT :limit";
     } else if (curExType_ == ExType::Grammar) {
-        sql = "SELECT * FROM grammar_exercises WHERE difficulty = :difficulty ORDER BY RANDOM() LIMIT :limit";
+        sql =
+            "SELECT * FROM grammar_exercises WHERE difficulty = :difficulty ORDER BY RANDOM() "
+            "LIMIT :limit";
     } else {
         return;
     }
@@ -496,7 +824,10 @@ void MainWindow::loadTasksForSeries() {
             curGrammarSeries_.append(GrammarTask::fromSql(q));
         }
     }
-    qDebug() << "Loaded" << (curExType_ == ExType::Translation ? curTransSeries_.size() : curGrammarSeries_.size()) << "tasks.";
+    qDebug() << "Loaded"
+             << (curExType_ == ExType::Translation ? curTransSeries_.size()
+                                                   : curGrammarSeries_.size())
+             << "tasks.";
 }
 
 void MainWindow::loadNextTask() {
@@ -546,7 +877,9 @@ void MainWindow::updateGrammarTaskUI() {
 }
 
 void MainWindow::checkTransAnswer() {
-    if (curExType_ != ExType::Translation || curTaskIdx_ >= curTransSeries_.size()) return;
+    if (curExType_ != ExType::Translation || curTaskIdx_ >= curTransSeries_.size()) {
+        return;
+    }
 
     QString ans = transInput_->toPlainText().trimmed();
     const auto& task = curTransSeries_[curTaskIdx_];
@@ -558,7 +891,10 @@ void MainWindow::checkTransAnswer() {
             int pts = 10 * completedTasks_ * curDifficulty_;
             curScore_ += pts;
             updateStatsUI();
-            endSeries(true, QString("Поздравляем! Серия выполнена! +%1 очков. Счёт: %2").arg(pts).arg(curScore_));
+            endSeries(
+                true, QString("Поздравляем! Серия выполнена! +%1 очков. Счёт: %2")
+                          .arg(pts)
+                          .arg(curScore_));
         } else if (curTaskIdx_ < total - 1) {
             updateStatsUI();
             loadNextTask();
@@ -569,7 +905,11 @@ void MainWindow::checkTransAnswer() {
     } else {
         remAttempts_--;
         updateStatsUI();
-        QMessageBox::warning(this, "Неправильно", QString("Попробуйте еще. Ответ: %1\nПопыток: %2").arg(task.targetText()).arg(remAttempts_));
+        QMessageBox::warning(
+            this, "Неправильно",
+            QString("Попробуйте еще. Ответ: %1\nПопыток: %2")
+                .arg(task.targetText())
+                .arg(remAttempts_));
         if (remAttempts_ <= 0) {
             endSeries(false, "Попытки закончились. Серия не пройдена.");
         }
@@ -577,7 +917,9 @@ void MainWindow::checkTransAnswer() {
 }
 
 void MainWindow::checkGrammarAnswer() {
-    if (curExType_ != ExType::Grammar || curTaskIdx_ >= curGrammarSeries_.size()) return;
+    if (curExType_ != ExType::Grammar || curTaskIdx_ >= curGrammarSeries_.size()) {
+        return;
+    }
 
     int sel = -1;
     for (int i = 0; i < grammarOptsRb_.size(); ++i) {
@@ -601,7 +943,10 @@ void MainWindow::checkGrammarAnswer() {
             int pts = 15 * completedTasks_ * curDifficulty_;
             curScore_ += pts;
             updateStatsUI();
-            endSeries(true, QString("Поздравляем! Серия выполнена! +%1 очков. Счёт: %2").arg(pts).arg(curScore_));
+            endSeries(
+                true, QString("Поздравляем! Серия выполнена! +%1 очков. Счёт: %2")
+                          .arg(pts)
+                          .arg(curScore_));
         } else if (curTaskIdx_ < total - 1) {
             updateStatsUI();
             loadNextTask();
@@ -613,10 +958,12 @@ void MainWindow::checkGrammarAnswer() {
         remAttempts_--;
         updateStatsUI();
         QString cr_ans = "неизвестен";
-        if(task.correctOption() > 0 && task.correctOption() <= task.options().size()){
+        if (task.correctOption() > 0 && task.correctOption() <= task.options().size()) {
             cr_ans = task.options().at(task.correctOption() - 1);
         }
-        QMessageBox::warning(this, "Неправильно", QString("Неверно. Ответ: %1\nПопыток: %2").arg(cr_ans).arg(remAttempts_));
+        QMessageBox::warning(
+            this, "Неправильно",
+            QString("Неверно. Ответ: %1\nПопыток: %2").arg(cr_ans).arg(remAttempts_));
         if (remAttempts_ <= 0) {
             endSeries(false, "Попытки закончились. Серия не пройдена.");
         }
@@ -647,13 +994,13 @@ void MainWindow::endSeries(bool success, const QString& msg) {
     stackedWidget_->setCurrentWidget(placeholderPage_);
 }
 
-
 void MainWindow::updateStatsUI() {
     scoreLbl_->setText(QString("Счёт: %1").arg(curScore_));
 
     if (curExType_ != ExType::None) {
         attemptsLbl_->setText(QString("Попытки: %1").arg(remAttempts_));
-        timerLbl_->setText(QString("Время: %1:%02").arg(seriesTimeRemSec_ / 60).arg(seriesTimeRemSec_ % 60));
+        timerLbl_->setText(
+            QString("Время: %1:%02").arg(seriesTimeRemSec_ / 60).arg(seriesTimeRemSec_ % 60));
         progressBar_->setValue(completedTasks_);
         progressBar_->setFormat(QString("%1 / %2").arg(completedTasks_).arg(TASKS_PER_SERIES));
     } else {
@@ -664,10 +1011,9 @@ void MainWindow::updateStatsUI() {
     }
 }
 
-
-void MainWindow::keyPressEvent(QKeyEvent *ev) {
+void MainWindow::keyPressEvent(QKeyEvent* ev) {
     if (ev->key() == Qt::Key_H) {
-        if (curExType_ != ExType::None && curTaskIdx_ >=0) {
+        if (curExType_ != ExType::None && curTaskIdx_ >= 0) {
             showHelp();
         } else {
             QMessageBox::information(this, "Подсказка", "Начните упражнение для подсказки.");
@@ -682,12 +1028,16 @@ void MainWindow::showHelp() {
     if (curExType_ == ExType::Translation) {
         if (curTaskIdx_ < curTransSeries_.size()) {
             QString th = curTransSeries_[curTaskIdx_].hint();
-            if (!th.isEmpty()) hnt = th;
+            if (!th.isEmpty()) {
+                hnt = th;
+            }
         }
     } else if (curExType_ == ExType::Grammar) {
         if (curTaskIdx_ < curGrammarSeries_.size()) {
             QString th = curGrammarSeries_[curTaskIdx_].hint();
-            if (!th.isEmpty()) hnt = th;
+            if (!th.isEmpty()) {
+                hnt = th;
+            }
         }
     } else {
         QMessageBox::information(this, "Подсказка", "Начните упражнение для подсказки.");

@@ -1,43 +1,43 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "grammartask.h"
+#include "translationtask.h"
+
+#include <QAction>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QGroupBox>
+#include <QKeyEvent>
+#include <QLabel>
+#include <QMainWindow>
+#include <QMenuBar>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QRadioButton>
 #include <QSqlDatabase>
 #include <QSqlQuery>
-#include <QMainWindow>
 #include <QStackedWidget>
-#include <QProgressBar>
 #include <QTextEdit>
-#include <QRadioButton>
-#include <QGroupBox>
-#include <QPushButton>
-#include <QLabel>
-#include <QMenuBar>
-#include <QAction>
 #include <QTimer>
-#include <QKeyEvent>
-#include <QDialog>
-#include <QComboBox>
-#include <QDialogButtonBox>
 #include <QVBoxLayout>
-#include "translationtask.h"
-#include "grammartask.h"
 
 const int TASKS_PER_SERIES = 5;
 const int MAX_ATTEMPTS_PER_SERIES = 3;
 const int SERIES_TIME_SECONDS = 180;
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
-public:
-    MainWindow(QWidget *parent = nullptr);
+   public:
+    MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
 
-protected:
-    void keyPressEvent(QKeyEvent *ev) override;
+   protected:
+    void keyPressEvent(QKeyEvent* ev) override;
 
-private slots:
+   private slots:
     void onStartBtnClicked();
     void switchToTransEx();
     void switchToGrammarEx();
@@ -47,7 +47,7 @@ private slots:
     void openDifficultyDialog();
     void showHelp();
 
-private:
+   private:
     QSqlDatabase db_;
     QWidget* mainContainer_;
     QStackedWidget* stackedWidget_;
@@ -108,4 +108,4 @@ private:
     void updateStatsUI();
     void resetGameStats();
 };
-#endif // MAINWINDOW_H
+#endif  // MAINWINDOW_H

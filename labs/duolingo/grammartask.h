@@ -1,18 +1,17 @@
 #ifndef GRAMMARTASK_H
 #define GRAMMARTASK_H
 
-#include <QString>
 #include <QSqlQuery>
+#include <QString>
 #include <QStringList>
 #include <QVariant>
 
-class GrammarTask
-{
-public:
+class GrammarTask {
+   public:
     GrammarTask();
-    GrammarTask(int id, const QString& question,
-                const QStringList& options, int correct_option,
-                const QString& hint = "", int difficulty = 1);
+    GrammarTask(
+        int id, const QString& question, const QStringList& options, int correct_option,
+        const QString& hint = "", int difficulty = 1);
 
     int id() const;
     QString question() const;
@@ -23,7 +22,7 @@ public:
 
     static GrammarTask fromSql(const QSqlQuery& query);
 
-private:
+   private:
     int id_;
     QString question_;
     QStringList options_;
@@ -32,4 +31,4 @@ private:
     int difficulty_;
 };
 
-#endif // GRAMMARTASK_H
+#endif  // GRAMMARTASK_H
